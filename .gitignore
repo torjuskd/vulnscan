@@ -1,0 +1,40 @@
+#standard-catalogs for derived data
+target/
+activemq-data/
+build/
+bin/
+dist/
+vendor/
+
+#eclipse
+.settings
+.cache/
+.classpath
+.project
+.directory/
+
+#intellij
+.idea/
+*.iml
+*.ipr
+*.iws
+# Scala worksheet IntelliJ:
+*.sc
+
+#netbeans
+nb-configuration.xml
+nbproject/
+nbactions.xml
+
+#other
+*~
+.DS_Store
+.metadata/
+.m2/
+*.pyc
+profiles.xml
+rebel.xml
+*.db
+# Symlink to target-folder:
+target
+.java-version
