@@ -1,5 +1,6 @@
 package no.uio.ifi.vulnscan;
 
+import org.apache.commons.io.input.ReversedLinesFileReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,6 +8,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 /**
@@ -14,6 +16,7 @@ import java.util.ArrayList;
  */
 public final class Application {
     private static final Logger log = LoggerFactory.getLogger(Application.class);
+    private static final String processedHostsFilename = "processed_hosts";
 
     /**
      * @param args the path of the file containing the hosts you want to scan
@@ -34,8 +37,16 @@ public final class Application {
         }
 
         //1. parse file line by line or in entirety
-        final var hostnames = new FileParser().parseFile(filename);
+        var hostnames = new FileParser().parseFile(filename);
 
+        if (isContinueMode(args)) {
+            final var lastHost = getLastHostnameFromPreviousSession();
+
+            //Drop until last hostname from previous session, then skip that one too.
+            hostnames = hostnames.dropWhile(host -> !host.equals(lastHost)).skip(1);
+        }
+
+        log.info("Scan starting");
         //2. find subdomains (Subdomain enumeration using certificate transparency logs)
         hostnames.forEachOrdered(host -> {
                                      final ArrayList<String> subdomains = getSubdomains(host);
@@ -50,6 +61,7 @@ public final class Application {
                                  }
         );
         hostnames.close();
+        log.info("All hosts processed, Finished.");
 
         //TODO ideas:
         //4. run nmap with safe scripts
@@ -64,6 +76,26 @@ public final class Application {
         // Maybe save progress
     }
 
+    private static String getLastHostnameFromPreviousSession() {
+        try (final var reversedLinesFileReader =
+                     new ReversedLinesFileReader(new File(processedHostsFilename), Charset.defaultCharset())) {
+            return reversedLinesFileReader.readLine();
+        } catch (final IOException e) {
+            log.error("An error occurred while reading from " + processedHostsFilename, e);
+            System.exit(0);
+        }
+        return null;
+    }
+
+    private static boolean isContinueMode(final String[] args) {
+        for (final String argument : args) {
+            if (argument.equalsIgnoreCase("--continue") || argument.equalsIgnoreCase("-c")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void checkForDomainTakeoverVulns(final ArrayList<String> subdomains) {
         // Write to file to use subjack
         final String subdomainsTempFileName = "subdomains_temp";
@@ -76,20 +108,17 @@ public final class Application {
                 .runCommandOutPutArrayList(
                         "export PATH=\"$PATH:/home/torjusd/go/bin\"\n" +
                         "CURRENTDIR=$(pwd)\n" +
-//                                                     "cd /home/torjusd/go\n" +
-//                                                     "/home/torjusd/go/bin/subjack -w " +
                         "subjack -w " +
                         "$CURRENTDIR/" + subdomainsTempFileName + " -t 100 -timeout 30 " +
                         "-o " + "$CURRENTDIR/" + subdomainsSubjackResultsFile + " -ssl -a -v");
     }
 
     private static void writeHostnameToProcessedFile(final String host) {
-        final String processedHostFilename = "processed_hosts";
         try (final BufferedWriter writer = new BufferedWriter(
-                new FileWriter(processedHostFilename, true))) {
+                new FileWriter(processedHostsFilename, true))) {
             writer.append(host).append("\n");
         } catch (final IOException e) {
-            log.error("An error occurred while writing to processed hosts file \"{}\"", processedHostFilename, e);
+            log.error("An error occurred while writing to processed hosts file \"{}\"", processedHostsFilename, e);
         }
     }
 
