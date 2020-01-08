@@ -17,6 +17,9 @@ import java.util.ArrayList;
 public final class Application {
     private static final Logger log = LoggerFactory.getLogger(Application.class);
     private static final String processedHostsFilename = "processed_hosts";
+    private static final String subdomainsSubjackResultsFile = "subdomain_subjack_results";
+    private static final String subdomainsTempFileName = "subdomains_temp";
+    private static final String hostsToScanDefaultHostnameFilename = "hostnames";
 
     /**
      * @param args the path of the file containing the hosts you want to scan
@@ -27,13 +30,15 @@ public final class Application {
         final String filename;
         if (args.length > 0 && args[0] != null && !args[0].isBlank() && new File(args[0]).isFile()) {
             filename = args[0];
-        } else if (new File("hostnames").isFile()) {
-            filename = "hostnames";
         } else {
-            log.error("Run application using:\n" +
-                      "java -jar vulnscan fileWithHostNames");
-            System.exit(0);
-            filename = "";
+            if (new File(hostsToScanDefaultHostnameFilename).isFile()) {
+                filename = hostsToScanDefaultHostnameFilename;
+            } else {
+                log.error("Run application using:\n" +
+                          "java -jar vulnscan fileWithHostNames");
+                System.exit(0);
+                filename = hostsToScanDefaultHostnameFilename;
+            }
         }
 
         //1. parse file line by line or in entirety
@@ -98,12 +103,10 @@ public final class Application {
 
     private static void checkForDomainTakeoverVulns(final ArrayList<String> subdomains) {
         // Write to file to use subjack
-        final String subdomainsTempFileName = "subdomains_temp";
         new FileOverWriter().writeContentsToFile(subdomains, subdomainsTempFileName);
 
         // Subjack appends to result-file, so we don't have to change filename for repeated calls
         //TODO: fix PATH here
-        final String subdomainsSubjackResultsFile = "subdomain_subjack_results";
         final var subjackResults = new BashCommand()
                 .runCommandOutPutArrayList(
                         "export PATH=\"$PATH:/home/torjusd/go/bin\"\n" +
