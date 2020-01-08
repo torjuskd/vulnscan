@@ -20,6 +20,7 @@ public final class Application {
     private static final String subdomainsSubjackResultsFile = "subdomain_subjack_results";
     private static final String subdomainsTempFileName = "subdomains_temp";
     private static final String hostsToScanDefaultHostnameFilename = "hostnames";
+    private static final String heartbleedFilename = "heartbleed_script_output";
 
     /**
      * @param args the path of the file containing the hosts you want to scan
@@ -43,21 +44,30 @@ public final class Application {
         var hostnames = new FileParser().parseFile(filename);
 
         if (isContinueMode(args)) {
+            log.info("Continuing previously started scan");
             final var lastHost = getLastHostnameFromPreviousSession();
 
             //Drop until last hostname from previous session, then skip that one too.
             hostnames = hostnames.dropWhile(host -> !host.equals(lastHost)).skip(1);
         }
 
+        //TODO: check if this is set on the next login
+        log.debug(new BashCommand().runCommandOutputString("echo $PATH"));
+
         log.info("Scan starting");
         //2. find subdomains (Subdomain enumeration using certificate transparency logs)
         hostnames.forEachOrdered(host -> {
                                      final ArrayList<String> subdomains = getSubdomains(host);
 
-                                     //TODO: check if this is set on the next login
-                                     new BashCommand().runCommandOutputString("echo $PATH");
-
                                      checkForDomainTakeoverVulns(subdomains);
+
+                                     final var spaceDelimitedSubdomains = new StringBuilder();
+                                     subdomains.forEach(s -> spaceDelimitedSubdomains.append(s).append(" "));
+                                     spaceDelimitedSubdomains.deleteCharAt(spaceDelimitedSubdomains.length() - 1);
+
+//                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
+//                                             "nmap -sV -p 433 --script=ssl-heartbleed.nse "
+//                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
 
                                      //x. Append processed hosts to file to keep track
                                      writeHostnameToProcessedFile(host);
@@ -67,13 +77,12 @@ public final class Application {
         log.info("All hosts processed, Finished.");
 
         //TODO ideas:
-        //4. run nmap with safe scripts
         //exposed credentials
         //exposed source code
         //other
         //* aws - open s3 buckets
         //* CORS misconfiguration
-        //masscan -> nmap port, heartbleed -> sslscrape -> dangling cnames -> google -> github -> dirbuster -> subdomain discovery (feks. knockpy) ->
+        //masscan -> nmap port, heartbleed -> sslscrape -> dangling cnames -> google -> github -> dirbuster -> subdomain discovery (eg. knockpy) ->
 
         // log progress to terminal domain by domain
         // Maybe save progress
