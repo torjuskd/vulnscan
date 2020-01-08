@@ -31,13 +31,11 @@ public final class Application {
         if (args.length > 0 && args[0] != null && !args[0].isBlank() && new File(args[0]).isFile()) {
             filename = args[0];
         } else {
-            if (new File(hostsToScanDefaultHostnameFilename).isFile()) {
-                filename = hostsToScanDefaultHostnameFilename;
-            } else {
+            filename = hostsToScanDefaultHostnameFilename;
+            if (!new File(hostsToScanDefaultHostnameFilename).isFile()) {
                 log.error("Run application using:\n" +
                           "java -jar vulnscan fileWithHostNames");
                 System.exit(0);
-                filename = hostsToScanDefaultHostnameFilename;
             }
         }
 
