@@ -29,13 +29,11 @@ public class BashCommand {
             String line;
             while ((line = reader.readLine()) != null) {
                 output.add(line);
+                log.debug(output.toString());
             }
 
             final int exitVal = process.waitFor();
-            if (exitVal == 0) {
-                log.info(output.toString());
-            } else {
-                log.error(output.toString());
+            if (exitVal != 0) {
                 final StringBuilder errorOutput = new StringBuilder();
                 String errorLine;
                 while ((errorLine = errorReader.readLine()) != null) {
@@ -55,29 +53,33 @@ public class BashCommand {
         log.debug("running command " + "\"" + command + "\"");
         final ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.command("bash", "-c", command);
+        final StringBuilder output = new StringBuilder();
 
         try {
             final Process process = processBuilder.start();
-            final StringBuilder output = new StringBuilder();
+            final BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             final BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()));
 
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
+                log.debug(output.toString());
             }
 
             final int exitVal = process.waitFor();
-            if (exitVal == 0) {
-                log.info(output.toString());
-                return output.toString();
-            } else {
-                log.error(output.toString());
+            if (exitVal != 0) {
+                final StringBuilder errorOutput = new StringBuilder();
+                String errorLine;
+                while ((errorLine = errorReader.readLine()) != null) {
+                    errorOutput.append(errorLine).append("\n");
+                }
+                log.error(errorOutput.toString());
                 log.error("Received non-zero (faulty) exit code " + exitVal);
             }
         } catch (final IOException | InterruptedException e) {
             log.error("An error occurred " + e);
         }
-        return "";
+        return output.toString();
     }
 }
