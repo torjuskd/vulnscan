@@ -65,9 +65,9 @@ public final class Application {
                                      subdomains.forEach(s -> spaceDelimitedSubdomains.append(s).append(" "));
                                      spaceDelimitedSubdomains.deleteCharAt(spaceDelimitedSubdomains.length() - 1);
 
-//                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
-//                                             "nmap -sV -p 433 --script=ssl-heartbleed.nse "
-//                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
+                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
+                                             "nmap -sV -p 433 --host-timeout 5 --script-timeout 120 --script=ssl-heartbleed.nse "
+                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
 
                                      //x. Append processed hosts to file to keep track
                                      writeHostnameToProcessedFile(host);
