@@ -23,7 +23,7 @@ public class VulnScan {
     private static final String heartbleedFilename = "heartbleed_script_output";
 
     /**
-     * @param filename the path of the file containing the hosts you want to scan
+     * @param filename       the path of the file containing the hosts you want to scan
      * @param isContinueMode if true: continue from previous scans, else start from beginning
      */
     public static void run(final String filename, final boolean isContinueMode) {
@@ -42,20 +42,20 @@ public class VulnScan {
         //TODO: check if this is set on the next login
         log.debug(new BashCommand().runCommandOutputString("echo $PATH"));
 
-        log.info("Scan starting");
+        log.info("Scan starting, processing domains:");
         //2. find subdomains (Subdomain enumeration using certificate transparency logs)
         hostnames.forEachOrdered(host -> {
+                                     log.info(host);
                                      final ArrayList<String> subdomains = getSubdomains(host);
 
                                      checkForDomainTakeoverVulns(subdomains);
 
-                                     final var spaceDelimitedSubdomains = new StringBuilder();
-                                     subdomains.forEach(s -> spaceDelimitedSubdomains.append(s).append(" "));
-                                     spaceDelimitedSubdomains.deleteCharAt(spaceDelimitedSubdomains.length() - 1);
-
-                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
-                                             "nmap -sV -p 433 --host-timeout 5 --script-timeout 120 --script=ssl-heartbleed.nse "
-                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
+//                                     final var spaceDelimitedSubdomains = new StringBuilder();
+//                                     subdomains.forEach(s -> spaceDelimitedSubdomains.append(s).append(" "));
+//                                     spaceDelimitedSubdomains.deleteCharAt(spaceDelimitedSubdomains.length() - 1);
+//                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
+//                                             "nmap -sV -p 433 --host-timeout 5 --script-timeout 120 --script=ssl-heartbleed.nse "
+//                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
 
                                      //x. Append processed hosts to file to keep track
                                      writeHostnameToProcessedFile(host);
@@ -99,7 +99,7 @@ public class VulnScan {
                         "CURRENTDIR=$(pwd)\n" +
                         "subjack -w " +
                         "$CURRENTDIR/" + subdomainsTempFileName + " -t 100 -timeout 30 " +
-                        "-o " + "$CURRENTDIR/" + subdomainsSubjackResultsFile + " -ssl -a -v");
+                        "-o " + "$CURRENTDIR/" + subdomainsSubjackResultsFile + " -ssl -a");
     }
 
     private static void writeHostnameToProcessedFile(final String host) {
