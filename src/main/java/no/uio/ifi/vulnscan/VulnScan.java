@@ -20,7 +20,6 @@ public class VulnScan {
     private static final String processedSubdomainsFilename = "processed_subdomains";
     private static final String subdomainsSubjackResultsFile = "subdomain_subjack_results";
     private static final String subdomainsTempFileName = "subdomains_temp";
-    private static final String hostsToScanDefaultHostnameFilename = "hostnames";
     private static final String heartbleedFilename = "heartbleed_script_output";
     private static final String agressiveScanOutputFilename = "agressive_scan_output";
 
