@@ -17,16 +17,19 @@ import java.util.ArrayList;
 public class VulnScan {
     private static final Logger log = LoggerFactory.getLogger(VulnScan.class);
     private static final String processedHostsFilename = "processed_hosts";
+    private static final String processedSubdomainsFilename = "processed_subdomains";
     private static final String subdomainsSubjackResultsFile = "subdomain_subjack_results";
     private static final String subdomainsTempFileName = "subdomains_temp";
     private static final String hostsToScanDefaultHostnameFilename = "hostnames";
     private static final String heartbleedFilename = "heartbleed_script_output";
+    private static final String agressiveScanOutputFilename = "agressive_scan_output";
 
     /**
      * @param filename       the path of the file containing the hosts you want to scan
      * @param isContinueMode if true: continue from previous scans, else start from beginning
+     * @param aggressiveMode can be set to perform aggressive scans
      */
-    public static void run(final String filename, final boolean isContinueMode) {
+    public static void run(final String filename, final boolean isContinueMode, final boolean aggressiveMode) {
 
         //1. parse file line by line or in entirety
         var hostnames = new FileParser().parseFile(filename);
@@ -42,13 +45,43 @@ public class VulnScan {
         //TODO: check if this is set on the next login
         log.debug(new BashCommand().runCommandOutputString("echo $PATH"));
 
+        log.info("running meg first to look for files in webroot");
+
+        final var megHostnamesWithProtocolFilename = "meg_hostnames_with_protocol";
+        new BashCommand().runCommandOutputString("sed -e 's/^/https:\\/\\//' " + filename + " > " +
+                                                 megHostnamesWithProtocolFilename);
+        final var megPathsFilename = "meg_paths";
+        // create paths file with /.env if it does not exist
+        new BashCommand().runCommandOutputString("[ ! -f "+megPathsFilename+" ] && echo \"/.env\" >> "+ megPathsFilename);
+
+        new BashCommand().runCommandOutputString(
+                "meg --savestatus 200 " + megPathsFilename + " " + megHostnamesWithProtocolFilename);
+
+        log.info("meg finished");
+
+        //TODO: remove after testing meg
+//        System.exit(0);
+
         log.info("Scan starting, processing domains:");
-        //2. find subdomains (Subdomain enumeration using certificate transparency logs)
         hostnames.forEachOrdered(host -> {
                                      log.info(host);
-                                     final ArrayList<String> subdomains = getSubdomains(host);
 
+                                     //2. find subdomains (Subdomain enumeration using certificate transparency logs)
+                                     final ArrayList<String> subdomains = getSubdomains(host);
                                      checkForDomainTakeoverVulns(subdomains);
+
+                                     //3. scan for heartbleed-vulnerability
+                                     // time out for single hosts after two minutes, (can change to give output in condensed greppable format)
+                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
+                                             "nmap -p 443 --host-timeout 3m --script-timeout 900 --script=ssl-heartbleed "
+                                             + host + " >> " + heartbleedFilename);
+
+                                     //4. Perform a typical scan if in agressive mode, but also force OS-guessing
+                                     if (aggressiveMode) {
+                                         final var agressiveScanOutput = new BashCommand().runCommandOutputString(
+                                                 "sudo nmap -A -T4 --osscan-guess --host-timeout 5m" + host
+                                                 + " >> " + agressiveScanOutputFilename);
+                                     }
 
 //                                     final var spaceDelimitedSubdomains = new StringBuilder();
 //                                     subdomains.forEach(s -> spaceDelimitedSubdomains.append(s).append(" "));
@@ -57,7 +90,9 @@ public class VulnScan {
 //                                             "nmap -sV -p 433 --host-timeout 5 --script-timeout 120 --script=ssl-heartbleed.nse "
 //                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
 
-                                     //x. Append processed hosts to file to keep track
+                                     // Save looked up subdomains
+                                     writeSubdomainsToProcessedFile(subdomains);
+                                     //x Append processed hosts to file to save progress
                                      writeHostnameToProcessedFile(host);
                                  }
         );
@@ -70,7 +105,7 @@ public class VulnScan {
         //other
         //* aws - open s3 buckets
         //* CORS misconfiguration
-        //masscan -> nmap port, heartbleed -> sslscrape -> dangling cnames -> google -> github -> dirbuster -> subdomain discovery (eg. knockpy) ->
+        //masscan -> nmap port, heartbleed -> sslscrape/sublister -> dangling cnames -> google -> github -> dirbuster -> subdomain discovery (eg. knockpy) ->
 
         // log progress to terminal domain by domain
         // Maybe save progress
@@ -108,6 +143,19 @@ public class VulnScan {
             writer.append(host).append("\n");
         } catch (final IOException e) {
             log.error("An error occurred while writing to processed hosts file \"{}\"", processedHostsFilename, e);
+        }
+    }
+
+    private static void writeSubdomainsToProcessedFile(final ArrayList<String> subdomains) {
+        try (final BufferedWriter writer = new BufferedWriter(
+                new FileWriter(processedSubdomainsFilename, true))) {
+            for (final String s : subdomains) {
+                writer.append(s).append("\n");
+            }
+        } catch (final IOException e) {
+            log.error("An error occurred while writing to processed hosts file \"{}\"",
+                      processedSubdomainsFilename,
+                      e);
         }
     }
 

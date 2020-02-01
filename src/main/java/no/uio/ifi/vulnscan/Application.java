@@ -25,13 +25,22 @@ public final class Application {
             filename = hostsToScanDefaultHostnameFilename;
             if (!new File(hostsToScanDefaultHostnameFilename).isFile()) {
                 log.error("Run application using:\n" +
-                          "java -jar vulnscan fileWithHostNames");
+                          "java -jar vulnscan [fileWithHostNames] [--continue/-c, --aggressive/-a]");
                 System.exit(0);
             }
         }
 
         // run scanner
-        VulnScan.run(filename, isContinueMode(args));
+        VulnScan.run(filename, isContinueMode(args), isAggressiveMode(args));
+    }
+
+    private static boolean isAggressiveMode(final String[] args) {
+        for (final String argument : args) {
+            if (argument.equalsIgnoreCase("--aggressive") || argument.equalsIgnoreCase("-a")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isContinueMode(final String[] args) {
