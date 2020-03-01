@@ -22,16 +22,107 @@ public class VulnScan {
     private static final String subdomainsTempFileName = "subdomains_temp";
     private static final String heartbleedFilename = "heartbleed_script_output";
     private static final String agressiveScanOutputFilename = "agressive_scan_output";
+    private static final String hostsToScanDefaultHostnameFilename = "hostnames";
+    private static boolean aggressiveMode;
+    private static boolean isContinueMode;
+    private final String actualHostsToScanFileName;
 
     /**
-     * @param filename       the path of the file containing the hosts you want to scan
-     * @param isContinueMode if true: continue from previous scans, else start from beginning
-     * @param aggressiveMode can be set to perform aggressive scans
+     * Sets the following
+     * filename       the path of the file containing the hosts you want to scan
+     * isContinueMode if true: continue from previous scans, else start from beginning
+     * aggressiveMode can be set to perform aggressive scans
+     *
+     * @param args input arguments from command line
      */
-    public static void run(final String filename, final boolean isContinueMode, final boolean aggressiveMode) {
+    public VulnScan(final String[] args) {
+
+        // handle input file or use default "hostnames"-file
+        if (args.length > 0 && args[0] != null && !args[0].isBlank() && new File(args[0]).isFile()) {
+            actualHostsToScanFileName = args[0];
+        } else {
+            actualHostsToScanFileName = hostsToScanDefaultHostnameFilename;
+            if (!new File(hostsToScanDefaultHostnameFilename).isFile()) {
+                log.error("Run application using:\n" +
+                          "java -jar vulnscan [fileWithHostNames] [--continue/-c, --aggressive/-a]");
+                System.exit(0);
+            }
+        }
+
+        for (final String argument : args) {
+            if (argument.equalsIgnoreCase("--aggressive") || argument.equalsIgnoreCase("-a")) {
+                aggressiveMode = true;
+            }
+            if (argument.equalsIgnoreCase("--continue") || argument.equalsIgnoreCase("-c")) {
+                isContinueMode = true;
+            }
+        }
+    }
+
+    private String getLastHostnameFromPreviousSession() {
+        try (final var reversedLinesFileReader =
+                     new ReversedLinesFileReader(new File(processedHostsFilename), Charset.defaultCharset())) {
+            return reversedLinesFileReader.readLine();
+        } catch (final IOException e) {
+            log.error("An error occurred while reading from " + processedHostsFilename, e);
+            System.exit(0);
+        }
+        return null;
+    }
+
+    private void checkForDomainTakeoverVulns(final ArrayList<String> subdomains) {
+        // Write to file to use subjack
+        new FileOverWriter().writeContentsToFile(subdomains, subdomainsTempFileName);
+
+        // Subjack appends to result-file, so we don't have to change filename for repeated calls
+        //TODO: fix PATH here
+        final var subjackResults = new BashCommand()
+                .runCommandOutPutArrayList(
+                        "export PATH=\"$PATH:/home/torjusd/go/bin\"\n" +
+                        "CURRENTDIR=$(pwd)\n" +
+                        "subjack -w " +
+                        "$CURRENTDIR/" + subdomainsTempFileName + " -t 100 -timeout 30 " +
+                        "-o " + "$CURRENTDIR/" + subdomainsSubjackResultsFile + " -ssl -a");
+    }
+
+    private void writeHostnameToProcessedFile(final String host) {
+        try (final BufferedWriter writer = new BufferedWriter(
+                new FileWriter(processedHostsFilename, true))) {
+            writer.append(host).append("\n");
+        } catch (final IOException e) {
+            log.error("An error occurred while writing to processed hosts file \"{}\"", processedHostsFilename, e);
+        }
+    }
+
+    private void writeSubdomainsToProcessedFile(final ArrayList<String> subdomains) {
+        try (final BufferedWriter writer = new BufferedWriter(
+                new FileWriter(processedSubdomainsFilename, true))) {
+            for (final String s : subdomains) {
+                writer.append(s).append("\n");
+            }
+        } catch (final IOException e) {
+            log.error("An error occurred while writing to processed hosts file \"{}\"",
+                      processedSubdomainsFilename,
+                      e);
+        }
+    }
+
+    private ArrayList<String> getSubdomains(final String host) {
+        return new BashCommand()
+                .runCommandOutPutArrayList("hostname=" + host + "\n" +
+                                           "query=\"SELECT ci.NAME_VALUE NAME_VALUE FROM certificate_identity ci " +
+                                           "WHERE ci.NAME_TYPE = 'dNSName' AND reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower('%.$hostname'));\"\n" +
+                                           "\n" +
+                                           "(echo $hostname; echo $query | \\\n" +
+                                           "    psql -t -h crt.sh -p 5432 -U guest certwatch | \\\n" +
+                                           "    sed -e 's:^ *::g' -e 's:^*\\.::g' -e '/^$/d' | \\\n" +
+                                           "    sed -e 's:*.::g';) | sort -u");
+    }
+
+    public void run() {
 
         //1. parse file line by line or in entirety
-        var hostnames = new FileParser().parseFile(filename);
+        var hostnames = new FileParser().parseFile(actualHostsToScanFileName);
 
         if (isContinueMode) {
             log.info("Continuing previously started scan");
@@ -47,11 +138,12 @@ public class VulnScan {
         log.info("running meg first to look for files in webroot");
 
         final var megHostnamesWithProtocolFilename = "meg_hostnames_with_protocol";
-        new BashCommand().runCommandOutputString("sed -e 's/^/https:\\/\\//' " + filename + " > " +
+        new BashCommand().runCommandOutputString("sed -e 's/^/https:\\/\\//' " + actualHostsToScanFileName + " > " +
                                                  megHostnamesWithProtocolFilename);
         final var megPathsFilename = "meg_paths";
         // create paths file with /.env if it does not exist
-        new BashCommand().runCommandOutputString("[ ! -f "+megPathsFilename+" ] && echo \"/.env\" >> "+ megPathsFilename);
+        new BashCommand().runCommandOutputString(
+                "[ ! -f " + megPathsFilename + " ] && echo \"/.env\" >> " + megPathsFilename);
 
         new BashCommand().runCommandOutputString(
                 "meg --savestatus 200 " + megPathsFilename + " " + megHostnamesWithProtocolFilename);
@@ -99,7 +191,6 @@ public class VulnScan {
         log.info("All hosts processed, Finished.");
 
         //TODO ideas:
-        //exposed credentials
         //exposed source code
         //other
         //* aws - open s3 buckets
@@ -108,65 +199,5 @@ public class VulnScan {
 
         // log progress to terminal domain by domain
         // Maybe save progress
-    }
-
-    private static String getLastHostnameFromPreviousSession() {
-        try (final var reversedLinesFileReader =
-                     new ReversedLinesFileReader(new File(processedHostsFilename), Charset.defaultCharset())) {
-            return reversedLinesFileReader.readLine();
-        } catch (final IOException e) {
-            log.error("An error occurred while reading from " + processedHostsFilename, e);
-            System.exit(0);
-        }
-        return null;
-    }
-
-    private static void checkForDomainTakeoverVulns(final ArrayList<String> subdomains) {
-        // Write to file to use subjack
-        new FileOverWriter().writeContentsToFile(subdomains, subdomainsTempFileName);
-
-        // Subjack appends to result-file, so we don't have to change filename for repeated calls
-        //TODO: fix PATH here
-        final var subjackResults = new BashCommand()
-                .runCommandOutPutArrayList(
-                        "export PATH=\"$PATH:/home/torjusd/go/bin\"\n" +
-                        "CURRENTDIR=$(pwd)\n" +
-                        "subjack -w " +
-                        "$CURRENTDIR/" + subdomainsTempFileName + " -t 100 -timeout 30 " +
-                        "-o " + "$CURRENTDIR/" + subdomainsSubjackResultsFile + " -ssl -a");
-    }
-
-    private static void writeHostnameToProcessedFile(final String host) {
-        try (final BufferedWriter writer = new BufferedWriter(
-                new FileWriter(processedHostsFilename, true))) {
-            writer.append(host).append("\n");
-        } catch (final IOException e) {
-            log.error("An error occurred while writing to processed hosts file \"{}\"", processedHostsFilename, e);
-        }
-    }
-
-    private static void writeSubdomainsToProcessedFile(final ArrayList<String> subdomains) {
-        try (final BufferedWriter writer = new BufferedWriter(
-                new FileWriter(processedSubdomainsFilename, true))) {
-            for (final String s : subdomains) {
-                writer.append(s).append("\n");
-            }
-        } catch (final IOException e) {
-            log.error("An error occurred while writing to processed hosts file \"{}\"",
-                      processedSubdomainsFilename,
-                      e);
-        }
-    }
-
-    private static ArrayList<String> getSubdomains(final String host) {
-        return new BashCommand()
-                .runCommandOutPutArrayList("hostname=" + host + "\n" +
-                                           "query=\"SELECT ci.NAME_VALUE NAME_VALUE FROM certificate_identity ci " +
-                                           "WHERE ci.NAME_TYPE = 'dNSName' AND reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower('%.$hostname'));\"\n" +
-                                           "\n" +
-                                           "(echo $hostname; echo $query | \\\n" +
-                                           "    psql -t -h crt.sh -p 5432 -U guest certwatch | \\\n" +
-                                           "    sed -e 's:^ *::g' -e 's:^*\\.::g' -e '/^$/d' | \\\n" +
-                                           "    sed -e 's:*.::g';) | sort -u");
     }
 }
