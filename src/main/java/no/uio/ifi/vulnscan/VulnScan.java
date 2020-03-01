@@ -119,6 +119,9 @@ public class VulnScan {
                                            "    sed -e 's:*.::g';) | sort -u");
     }
 
+    /**
+     * Run the scanner
+     */
     public void run() {
 
         //1. parse file line by line or in entirety
