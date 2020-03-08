@@ -1,15 +1,13 @@
 package no.uio.ifi.vulnscan;
 
-import org.apache.commons.io.input.ReversedLinesFileReader;
+import no.uio.ifi.vulnscan.tasks.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A simple non-intrusive large scale vulnerability scanner
@@ -23,8 +21,8 @@ public class VulnScan {
     private static final String heartbleedFilename = "heartbleed_script_output";
     private static final String agressiveScanOutputFilename = "agressive_scan_output";
     private static final String hostsToScanDefaultHostnameFilename = "hostnames";
+    private static final String megPathsFilename = "meg_paths";
     private static boolean aggressiveMode;
-    private static boolean isContinueMode;
     private final String actualHostsToScanFileName;
 
     /**
@@ -52,71 +50,9 @@ public class VulnScan {
         for (final String argument : args) {
             if (argument.equalsIgnoreCase("--aggressive") || argument.equalsIgnoreCase("-a")) {
                 aggressiveMode = true;
-            }
-            if (argument.equalsIgnoreCase("--continue") || argument.equalsIgnoreCase("-c")) {
-                isContinueMode = true;
+                break; // NB: remove break if more conditions are added
             }
         }
-    }
-
-    private String getLastHostnameFromPreviousSession() {
-        try (final var reversedLinesFileReader =
-                     new ReversedLinesFileReader(new File(processedHostsFilename), Charset.defaultCharset())) {
-            return reversedLinesFileReader.readLine();
-        } catch (final IOException e) {
-            log.error("An error occurred while reading from " + processedHostsFilename, e);
-            System.exit(0);
-        }
-        return null;
-    }
-
-    private void checkForDomainTakeoverVulns(final ArrayList<String> subdomains) {
-        // Write to file to use subjack
-        new FileOverWriter().writeContentsToFile(subdomains, subdomainsTempFileName);
-
-        // Subjack appends to result-file, so we don't have to change filename for repeated calls
-        //TODO: fix PATH here
-        final var subjackResults = new BashCommand()
-                .runCommandOutPutArrayList(
-                        "export PATH=\"$PATH:/home/torjusd/go/bin\"\n" +
-                        "CURRENTDIR=$(pwd)\n" +
-                        "subjack -w " +
-                        "$CURRENTDIR/" + subdomainsTempFileName + " -t 100 -timeout 30 " +
-                        "-o " + "$CURRENTDIR/" + subdomainsSubjackResultsFile + " -ssl -a");
-    }
-
-    private void writeHostnameToProcessedFile(final String host) {
-        try (final BufferedWriter writer = new BufferedWriter(
-                new FileWriter(processedHostsFilename, true))) {
-            writer.append(host).append("\n");
-        } catch (final IOException e) {
-            log.error("An error occurred while writing to processed hosts file \"{}\"", processedHostsFilename, e);
-        }
-    }
-
-    private void writeSubdomainsToProcessedFile(final ArrayList<String> subdomains) {
-        try (final BufferedWriter writer = new BufferedWriter(
-                new FileWriter(processedSubdomainsFilename, true))) {
-            for (final String s : subdomains) {
-                writer.append(s).append("\n");
-            }
-        } catch (final IOException e) {
-            log.error("An error occurred while writing to processed hosts file \"{}\"",
-                      processedSubdomainsFilename,
-                      e);
-        }
-    }
-
-    private ArrayList<String> getSubdomains(final String host) {
-        return new BashCommand()
-                .runCommandOutPutArrayList("hostname=" + host + "\n" +
-                                           "query=\"SELECT ci.NAME_VALUE NAME_VALUE FROM certificate_identity ci " +
-                                           "WHERE ci.NAME_TYPE = 'dNSName' AND reverse(lower(ci.NAME_VALUE)) LIKE reverse(lower('%.$hostname'));\"\n" +
-                                           "\n" +
-                                           "(echo $hostname; echo $query | \\\n" +
-                                           "    psql -t -h crt.sh -p 5432 -U guest certwatch | \\\n" +
-                                           "    sed -e 's:^ *::g' -e 's:^*\\.::g' -e '/^$/d' | \\\n" +
-                                           "    sed -e 's:*.::g';) | sort -u");
     }
 
     /**
@@ -124,83 +60,42 @@ public class VulnScan {
      */
     public void run() {
 
-        //1. parse file line by line or in entirety
-        var hostnames = new FileParser().parseFile(actualHostsToScanFileName);
-
-        if (isContinueMode) {
-            log.info("Continuing previously started scan");
-            final var lastHost = getLastHostnameFromPreviousSession();
-
-            //Drop until last hostname from previous session, then skip that one too.
-            hostnames = hostnames.dropWhile(host -> !host.equals(lastHost)).skip(1);
-        }
-
         //TODO: check if this is set on the next login
         log.debug(new BashCommand().runCommandOutputString("echo $PATH"));
 
-        log.info("running meg first to look for files in webroot");
+        final List<CompletableFuture<Void>> scanTasks = new ArrayList<>();
 
-        final var megHostnamesWithProtocolFilename = "meg_hostnames_with_protocol";
-        new BashCommand().runCommandOutputString("sed -e 's/^/https:\\/\\//' " + actualHostsToScanFileName + " > " +
-                                                 megHostnamesWithProtocolFilename);
-        final var megPathsFilename = "meg_paths";
-        // create paths file with /.env if it does not exist
-        new BashCommand().runCommandOutputString(
-                "[ ! -f " + megPathsFilename + " ] && echo \"/.env\" >> " + megPathsFilename);
+        // RUN MEG
+        scanTasks.add(CompletableFuture.runAsync(new ScanForEnvFiles(megPathsFilename, actualHostsToScanFileName)));
 
-        new BashCommand().runCommandOutputString(
-                "meg --savestatus 200 " + megPathsFilename + " " + megHostnamesWithProtocolFilename);
+        // RUN git scan
+        scanTasks.add(CompletableFuture.runAsync(new ScanGit(actualHostsToScanFileName)));
 
-        log.info("meg finished");
-
-        //TODO: remove after testing meg
-//        System.exit(0);
-
+        // RUN subdomain scan
+        //TODO: refactor stream/filename
+        scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(actualHostsToScanFileName),
+                                                                    subdomainsTempFileName,
+                                                                    subdomainsSubjackResultsFile,
+                                                                    processedHostsFilename,
+                                                                    processedSubdomainsFilename)));
+        // RUN heartbleed scan
+        scanTasks.add(CompletableFuture.runAsync(new ScanHeartbleed(actualHostsToScanFileName, heartbleedFilename)));
         log.info("Scan starting, processing domains:");
-        hostnames.forEachOrdered(host -> {
-                                     log.info(host);
 
-                                     //2. find subdomains (Subdomain enumeration using certificate transparency logs)
-                                     final ArrayList<String> subdomains = getSubdomains(host);
-                                     checkForDomainTakeoverVulns(subdomains);
+        scanTasks.forEach(CompletableFuture::join);
 
-                                     //3. scan for heartbleed-vulnerability
-                                     // time out for single hosts after two minutes, (can change to give output in condensed greppable format)
-                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
-                                             "nmap -p 443 --host-timeout 3m --script-timeout 900 --script=ssl-heartbleed "
-                                             + host + " >> " + heartbleedFilename);
+        //run s3 scan after subdomains are looked up
+//        final var s3scan = CompletableFuture.runAsync(new ScanS3(processedSubdomainsFilename));
+//        s3scan.join();
 
-                                     //4. Perform a typical scan if in agressive mode, but also force OS-guessing
-                                     if (aggressiveMode) {
-                                         final var agressiveScanOutput = new BashCommand().runCommandOutputString(
-                                                 "sudo nmap -A -T4 --osscan-guess --host-timeout 5m" + host
-                                                 + " >> " + agressiveScanOutputFilename);
-                                     }
-
-//                                     final var spaceDelimitedSubdomains = new StringBuilder();
-//                                     subdomains.forEach(s -> spaceDelimitedSubdomains.append(s).append(" "));
-//                                     spaceDelimitedSubdomains.deleteCharAt(spaceDelimitedSubdomains.length() - 1);
-//                                     final var heartbleedOutput = new BashCommand().runCommandOutputString(
-//                                             "nmap -sV -p 433 --host-timeout 5 --script-timeout 120 --script=ssl-heartbleed.nse "
-//                                             + spaceDelimitedSubdomains + " >> " + heartbleedFilename);
-
-                                     // Save looked up subdomains
-                                     writeSubdomainsToProcessedFile(subdomains);
-                                     //x Append processed hosts to file to save progress
-                                     writeHostnameToProcessedFile(host);
-                                 }
-        );
-        hostnames.close();
         log.info("All hosts processed, Finished.");
 
         //TODO ideas:
         //exposed source code
         //other
-        //* aws - open s3 buckets
         //* CORS misconfiguration
         //masscan -> nmap port, heartbleed -> sslscrape/sublister -> dangling cnames -> google -> github -> dirbuster -> subdomain discovery (eg. knockpy) ->
 
-        // log progress to terminal domain by domain
-        // Maybe save progress
     }
+
 }
