@@ -1,7 +1,7 @@
 package no.uio.ifi.vulnscan.tasks;
 
 import no.uio.ifi.vulnscan.util.BashCommand;
-import no.uio.ifi.vulnscan.io.FileOverWriter;
+import no.uio.ifi.vulnscan.util.io.FileOverWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
