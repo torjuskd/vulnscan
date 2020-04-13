@@ -4,7 +4,7 @@ import no.uio.ifi.vulnscan.BashCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ScanForEnvFiles extends ScanTask {
+public class ScanForEnvFiles implements ScanTask {
     private static final Logger log = LoggerFactory.getLogger(ScanForEnvFiles.class);
     final String megPathsFilename;
     private final String actualHostsToScanFileName;

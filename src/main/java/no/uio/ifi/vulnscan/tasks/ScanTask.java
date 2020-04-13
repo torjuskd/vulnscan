@@ -1,5 +1,10 @@
 package no.uio.ifi.vulnscan.tasks;
 
-public abstract class ScanTask implements Runnable{
-    public abstract void run();
+/**
+ * ScanTask interface
+ * <p>
+ * This interface that the different tasks of the scanner has to implement.
+ */
+public interface ScanTask extends Runnable {
+    void run();
 }

@@ -2,7 +2,7 @@ package no.uio.ifi.vulnscan.tasks;
 
 import no.uio.ifi.vulnscan.BashCommand;
 
-public class ScanS3 extends ScanTask {
+public class ScanS3 implements ScanTask {
     private final String processedSubdomainsFilename;
     private final String potentialS3Buckets = "potential-s3-buckets-subdomains";
 

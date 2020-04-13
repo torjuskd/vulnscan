@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.stream.Stream;
 
-public class ScanSubdomains extends ScanTask {
+public class ScanSubdomains implements ScanTask {
     private static final Logger log = LoggerFactory.getLogger(ScanSubdomains.class);
     private final Stream<String> hostnames;
     private final String subdomainsTempFileName;

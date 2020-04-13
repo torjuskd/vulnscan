@@ -56,12 +56,15 @@ public class VulnScan {
     }
 
     /**
-     * Run the scanner
+     * Run the various tasks of the scanner
+     * <p>
+     * This is where scan tasks are executed. Add new scan tasks here if wanted.
+     * New scan tasks have to implement the ScanTask-interface, see {@link ScanTask}.
+     * Tasks can be done in parallel or sequentially. This is accomplished
+     * through the use of CompletableFutures.
      */
     public void run() {
-
-        //TODO: check if this is set on the next login
-        log.debug(new BashCommand().runCommandOutputString("echo $PATH"));
+        log.debug("PATH: " + new BashCommand().runCommandOutputString("echo $PATH"));
 
         final List<CompletableFuture<Void>> scanTasks = new ArrayList<>();
 
@@ -72,30 +75,19 @@ public class VulnScan {
         scanTasks.add(CompletableFuture.runAsync(new ScanGit(actualHostsToScanFileName)));
 
         // RUN subdomain scan
-        //TODO: refactor stream/filename
+        // THEN run s3 scan after subdomains are looked up
         scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(actualHostsToScanFileName),
                                                                     subdomainsTempFileName,
                                                                     subdomainsSubjackResultsFile,
                                                                     processedHostsFilename,
-                                                                    processedSubdomainsFilename)));
+                                                                    processedSubdomainsFilename))
+                                       .thenRun(new ScanS3(processedSubdomainsFilename)));
+
         // RUN heartbleed scan
         scanTasks.add(CompletableFuture.runAsync(new ScanHeartbleed(actualHostsToScanFileName, heartbleedFilename)));
-        log.info("Scan starting, processing domains:");
 
+        log.info("Scan starting, processing domains.");
         scanTasks.forEach(CompletableFuture::join);
-
-        //run s3 scan after subdomains are looked up
-//        final var s3scan = CompletableFuture.runAsync(new ScanS3(processedSubdomainsFilename));
-//        s3scan.join();
-
         log.info("All hosts processed, Finished.");
-
-        //TODO ideas:
-        //exposed source code
-        //other
-        //* CORS misconfiguration
-        //masscan -> nmap port, heartbleed -> sslscrape/sublister -> dangling cnames -> google -> github -> dirbuster -> subdomain discovery (eg. knockpy) ->
-
     }
-
 }
