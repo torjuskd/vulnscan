@@ -1,7 +1,7 @@
 package no.uio.ifi.vulnscan.tasks;
 
 import no.uio.ifi.vulnscan.BashCommand;
-import no.uio.ifi.vulnscan.FileParser;
+import no.uio.ifi.vulnscan.io.FileParser;
 
 public class ScanHeartbleed implements ScanTask {
     private final String actualHostsToScanFileName;

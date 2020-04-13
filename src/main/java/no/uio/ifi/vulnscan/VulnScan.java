@@ -1,5 +1,6 @@
 package no.uio.ifi.vulnscan;
 
+import no.uio.ifi.vulnscan.io.FileParser;
 import no.uio.ifi.vulnscan.tasks.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
