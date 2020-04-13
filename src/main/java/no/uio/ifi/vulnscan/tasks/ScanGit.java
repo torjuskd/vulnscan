@@ -1,6 +1,6 @@
 package no.uio.ifi.vulnscan.tasks;
 
-import no.uio.ifi.vulnscan.BashCommand;
+import no.uio.ifi.vulnscan.util.BashCommand;
 
 public class ScanGit implements ScanTask {
     final String hostnamesFile;

@@ -1,4 +1,4 @@
-package no.uio.ifi.vulnscan;
+package no.uio.ifi.vulnscan.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

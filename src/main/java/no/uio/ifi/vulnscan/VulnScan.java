@@ -2,6 +2,7 @@ package no.uio.ifi.vulnscan;
 
 import no.uio.ifi.vulnscan.io.FileParser;
 import no.uio.ifi.vulnscan.tasks.*;
+import no.uio.ifi.vulnscan.util.BashCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
