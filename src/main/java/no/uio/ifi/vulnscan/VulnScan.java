@@ -29,6 +29,8 @@ public class VulnScan {
     private final String actualHostsToScanFileName;
     private final Properties properties;
 
+    private final String emailResultFolderName = "email_output";
+
     /**
      * Sets the following
      * filename       the path of the file containing the hosts you want to scan
@@ -123,6 +125,14 @@ public class VulnScan {
         if (Boolean.parseBoolean(properties.getProperty(ScanHeartbleed.class.getSimpleName()))) {
             scanTasks.add(CompletableFuture.runAsync(new ScanHeartbleed(actualHostsToScanFileName,
                                                                         heartbleedFilename)));
+        }
+
+        // RUN email scan
+        if (Boolean.parseBoolean(properties.getProperty(ScanEmail.class.getSimpleName()))) {
+            final String simplyEmailPath = properties.getProperty("SIMPLY_EMAIL_DIR");
+            scanTasks.add(CompletableFuture.runAsync(new ScanEmail(actualHostsToScanFileName,
+                                                                   emailResultFolderName,
+                                                                   simplyEmailPath)));
         }
 
         log.info("Scan starting, processing domains.");
