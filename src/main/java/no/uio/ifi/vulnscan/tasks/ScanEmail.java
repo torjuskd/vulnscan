@@ -29,6 +29,7 @@ public class ScanEmail implements ScanTask {
                                          )
         );
         hostnames.close();
+        //3. move all email-results to a folder
         new BashCommand().runCommandOutputString(
                 "mkdir -p " + emailResultFolderName + " && mv *_emails.txt " + emailResultFolderName
         );
