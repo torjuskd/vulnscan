@@ -1,14 +1,15 @@
 package no.uio.ifi.vulnscan;
 
-import no.uio.ifi.vulnscan.util.io.FileParser;
 import no.uio.ifi.vulnscan.tasks.*;
 import no.uio.ifi.vulnscan.util.BashCommand;
+import no.uio.ifi.vulnscan.util.io.FileParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -26,6 +27,7 @@ public class VulnScan {
     private static final String megPathsFilename = "meg_paths";
     private static boolean aggressiveMode;
     private final String actualHostsToScanFileName;
+    private final Properties properties;
 
     /**
      * Sets the following
@@ -55,6 +57,23 @@ public class VulnScan {
                 break; // NB: remove break if more conditions are added
             }
         }
+
+        // read property file
+        properties = new Properties();
+        final String fileName = "vulnscan.config";
+        InputStream is = null;
+        try {
+            is = new FileInputStream(fileName);
+        } catch (final FileNotFoundException e) {
+            log.error("Error parsing config file " + fileName, e);
+            System.exit(0);
+        }
+        try {
+            properties.load(is);
+        } catch (final IOException e) {
+            log.error("Error parsing config file " + fileName, e);
+            System.exit(0);
+        }
     }
 
     /**
@@ -71,22 +90,40 @@ public class VulnScan {
         final List<CompletableFuture<Void>> scanTasks = new ArrayList<>();
 
         // RUN MEG
-        scanTasks.add(CompletableFuture.runAsync(new ScanForEnvFiles(megPathsFilename, actualHostsToScanFileName)));
+        if (Boolean.parseBoolean(properties.getProperty(ScanForEnvFiles.class.getSimpleName()))) {
+            scanTasks.add(CompletableFuture.runAsync(new ScanForEnvFiles(megPathsFilename, actualHostsToScanFileName)));
+        }
 
         // RUN git scan
-        scanTasks.add(CompletableFuture.runAsync(new ScanGit(actualHostsToScanFileName)));
+        if (Boolean.parseBoolean(properties.getProperty(ScanGit.class.getSimpleName()))) {
+            scanTasks.add(CompletableFuture.runAsync(new ScanGit(actualHostsToScanFileName)));
+        }
 
         // RUN subdomain scan
         // THEN run s3 scan after subdomains are looked up
-        scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(actualHostsToScanFileName),
-                                                                    subdomainsTempFileName,
-                                                                    subdomainsSubjackResultsFile,
-                                                                    processedHostsFilename,
-                                                                    processedSubdomainsFilename))
-                                       .thenRun(new ScanS3(processedSubdomainsFilename)));
+        if (Boolean.parseBoolean(properties.getProperty(ScanSubdomains.class.getSimpleName()))
+            && Boolean.parseBoolean(properties.getProperty(ScanS3.class.getSimpleName()))) {
+            scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(
+                    actualHostsToScanFileName),
+                                                                        subdomainsTempFileName,
+                                                                        subdomainsSubjackResultsFile,
+                                                                        processedHostsFilename,
+                                                                        processedSubdomainsFilename))
+                                           .thenRun(new ScanS3(processedSubdomainsFilename)));
+        } else if (Boolean.parseBoolean(properties.getProperty(ScanSubdomains.class.getSimpleName()))) {
+            scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(
+                    actualHostsToScanFileName),
+                                                                        subdomainsTempFileName,
+                                                                        subdomainsSubjackResultsFile,
+                                                                        processedHostsFilename,
+                                                                        processedSubdomainsFilename)));
+        }
 
         // RUN heartbleed scan
-        scanTasks.add(CompletableFuture.runAsync(new ScanHeartbleed(actualHostsToScanFileName, heartbleedFilename)));
+        if (Boolean.parseBoolean(properties.getProperty(ScanHeartbleed.class.getSimpleName()))) {
+            scanTasks.add(CompletableFuture.runAsync(new ScanHeartbleed(actualHostsToScanFileName,
+                                                                        heartbleedFilename)));
+        }
 
         log.info("Scan starting, processing domains.");
         scanTasks.forEach(CompletableFuture::join);
