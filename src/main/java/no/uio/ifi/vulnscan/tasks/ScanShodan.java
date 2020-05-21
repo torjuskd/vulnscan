@@ -27,15 +27,6 @@ public class ScanShodan implements ScanTask {
         final ShodanRestApi api = new ShodanRestApi(properties.getProperty("SHODAN_API_KEY"));
         final String shodanSearchQuery = properties.getProperty("SHODAN_SEARCH_QUERY");
 
-        /*
-         *
-         * SHODAN_API_KEY = ""
-         * query = "port:3389 org:hospital"
-         * endpoint = "https://api.shodan.io/shodan/host/search?key="+SHODAN_API_KEY+"&query="+query+"&page="
-         * cve = "CVE-2019-0708"
-         * fresh = []
-         */
-
         api.hostSearch(shodanSearchQuery)
            .subscribe(new DisposableObserver<HostReport>() {
                @Override
