@@ -54,6 +54,7 @@ public class ScanShodan implements ScanTask {
                    final int total = hostReport.getTotal();
                    final List<Banner> banners = hostReport.getBanners();
                    final FacetReport facet = hostReport.getFacet();
+                   log.info(hostReport.toString());
                }
            });
 

@@ -24,7 +24,7 @@ public class ScanEmail implements ScanTask {
         hostnames.forEachOrdered(host ->
                                          new BashCommand().runCommandOutputString(
                                                  "source " + simplyEmailPath + "/SE/bin/activate && " +
-                                                 simplyEmailPath + "/SimplyEmail.py -all -v -e " + host + " --json " +
+                                                 "SimplyEmail.py -all -v -e " + host + " --json " +
                                                  host + "_emails.txt"
                                          )
         );

@@ -28,6 +28,7 @@ public class VulnScan {
     private static boolean aggressiveMode;
     private final String actualHostsToScanFileName;
     private final Properties properties;
+    private final List<CompletableFuture<Void>> scanTasks;
 
     private final String emailResultFolderName = "email_output";
 
@@ -40,6 +41,8 @@ public class VulnScan {
      * @param args input arguments from command line
      */
     public VulnScan(final String[] args) {
+
+        scanTasks = new ArrayList<>();
 
         // handle input file or use default "hostnames"-file
         if (args.length > 0 && args[0] != null && !args[0].isBlank() && new File(args[0]).isFile()) {
@@ -83,66 +86,82 @@ public class VulnScan {
      * <p>
      * This is where scan tasks are executed. Add new scan tasks here if wanted.
      * New scan tasks have to implement the ScanTask-interface, see {@link ScanTask}.
-     * Tasks can be done in parallel or sequentially. This is accomplished
+     * <p>
+     * Tasks can run in parallel or sequentially. This is accomplished
      * through the use of CompletableFutures.
      */
     public void run() {
-        log.debug("PATH: " + new BashCommand().runCommandOutputString("echo $PATH"));
-
-        final List<CompletableFuture<Void>> scanTasks = new ArrayList<>();
-
         // RUN MEG
-        if (Boolean.parseBoolean(properties.getProperty(ScanForEnvFiles.class.getSimpleName()))) {
-            scanTasks.add(CompletableFuture.runAsync(new ScanForEnvFiles(megPathsFilename, actualHostsToScanFileName)));
+        if (taskShouldRun(ScanForEnvFiles.class)) {
+            addTaskToPipeline(new ScanForEnvFiles(megPathsFilename, actualHostsToScanFileName));
         }
 
         // RUN git scan
-        if (Boolean.parseBoolean(properties.getProperty(ScanGit.class.getSimpleName()))) {
-            scanTasks.add(CompletableFuture.runAsync(new ScanGit(actualHostsToScanFileName)));
+        if (taskShouldRun(ScanGit.class)) {
+            addTaskToPipeline(new ScanGit(actualHostsToScanFileName));
         }
 
         // RUN subdomain scan
         // THEN run s3 scan after subdomains are looked up
-        if (Boolean.parseBoolean(properties.getProperty(ScanSubdomains.class.getSimpleName()))
-            && Boolean.parseBoolean(properties.getProperty(ScanS3.class.getSimpleName()))) {
-            scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(
-                    actualHostsToScanFileName),
-                                                                        subdomainsTempFileName,
-                                                                        subdomainsSubjackResultsFile,
-                                                                        processedHostsFilename,
-                                                                        processedSubdomainsFilename))
+        if (taskShouldRun(ScanSubdomains.class)
+            && taskShouldRun(ScanS3.class)) {
+            scanTasks.add(CompletableFuture.runAsync(
+                    new ScanSubdomains(new FileParser().parseFile(actualHostsToScanFileName),
+                                       subdomainsTempFileName,
+                                       subdomainsSubjackResultsFile,
+                                       processedHostsFilename,
+                                       processedSubdomainsFilename))
                                            .thenRun(new ScanS3(processedSubdomainsFilename)));
-        } else if (Boolean.parseBoolean(properties.getProperty(ScanSubdomains.class.getSimpleName()))) {
-            scanTasks.add(CompletableFuture.runAsync(new ScanSubdomains(new FileParser().parseFile(
-                    actualHostsToScanFileName),
-                                                                        subdomainsTempFileName,
-                                                                        subdomainsSubjackResultsFile,
-                                                                        processedHostsFilename,
-                                                                        processedSubdomainsFilename)));
+        } else if (taskShouldRun(ScanSubdomains.class)) {
+            addTaskToPipeline(new ScanSubdomains(new FileParser().parseFile(actualHostsToScanFileName),
+                                                 subdomainsTempFileName,
+                                                 subdomainsSubjackResultsFile,
+                                                 processedHostsFilename,
+                                                 processedSubdomainsFilename));
         }
 
         // RUN heartbleed scan
-        if (Boolean.parseBoolean(properties.getProperty(ScanHeartbleed.class.getSimpleName()))) {
-            scanTasks.add(CompletableFuture.runAsync(new ScanHeartbleed(actualHostsToScanFileName,
-                                                                        heartbleedFilename)));
+        if (taskShouldRun(ScanHeartbleed.class)) {
+            addTaskToPipeline(new ScanHeartbleed(actualHostsToScanFileName,
+                                                 heartbleedFilename));
         }
 
         // RUN email scan
-        if (Boolean.parseBoolean(properties.getProperty(ScanEmail.class.getSimpleName()))) {
+        if (taskShouldRun(ScanEmail.class)) {
             final String simplyEmailPath = properties.getProperty("SIMPLY_EMAIL_DIR");
-            scanTasks.add(CompletableFuture.runAsync(new ScanEmail(actualHostsToScanFileName,
-                                                                   emailResultFolderName,
-                                                                   simplyEmailPath)));
+            addTaskToPipeline(new ScanEmail(actualHostsToScanFileName,
+                                            emailResultFolderName,
+                                            simplyEmailPath));
         }
 
         // RUN shodan-scan
-        if (Boolean.parseBoolean(properties.getProperty(ScanShodan.class.getSimpleName()))) {
-            scanTasks.add(CompletableFuture.runAsync(
-                    new ScanShodan(properties)));
+        if (taskShouldRun(ScanShodan.class)) {
+            addTaskToPipeline(new ScanShodan(properties));
         }
 
         log.info("Scan starting, processing domains.");
         scanTasks.forEach(CompletableFuture::join);
         log.info("All hosts processed, Finished.");
+    }
+
+    /**
+     * Checks if a task should be run, based on parameters in the config-file.
+     * classname=true to run a task or
+     * classname=false to not run a task
+     *
+     * @param clazz the class of the scan-task
+     * @return true if task should run
+     */
+    private boolean taskShouldRun(final Class clazz) {
+        return Boolean.parseBoolean(properties.getProperty(clazz.getSimpleName()));
+    }
+
+    /**
+     * Adds task to pipeline
+     *
+     * @param runnable task to run
+     */
+    private void addTaskToPipeline(final Runnable runnable) {
+        scanTasks.add(CompletableFuture.runAsync(runnable));
     }
 }
