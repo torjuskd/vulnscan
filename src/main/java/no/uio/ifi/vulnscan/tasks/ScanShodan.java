@@ -5,9 +5,11 @@ import com.fooock.shodan.model.banner.Banner;
 import com.fooock.shodan.model.host.FacetReport;
 import com.fooock.shodan.model.host.HostReport;
 import io.reactivex.observers.DisposableObserver;
+import no.uio.ifi.vulnscan.util.io.FileOverWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -55,6 +57,12 @@ public class ScanShodan implements ScanTask {
                    final List<Banner> banners = hostReport.getBanners();
                    final FacetReport facet = hostReport.getFacet();
                    log.info(hostReport.toString());
+
+                   final ArrayList<String> results = new ArrayList<>();
+                   results.add("Hosts found in total: " + total);
+                   banners.forEach(b -> results.add(b.toString()));
+
+                   new FileOverWriter().writeContentsToFile(results, "shodan_results");
                }
            });
 
