@@ -8,20 +8,24 @@ on your `PATH` for non-interactive shells.
 This usually means that: To make your PATH entries available to /bin/sh scripts run by a specific user,
 add the PATH entry to the ~/.profile file or ~/.bash_profile or ~/.bash_login.
 
-### dependencies
+### Dependencies
 - `postgresql` - install on eg. Ubuntu with `sudo apt install postgresql postgresql-contrib`, already installed on Kali.
 - [subjack](https://github.com/haccer/subjack)
 - [meg](https://github.com/tomnomnom/meg)
 - [nmap](https://nmap.org/)
 - [ripgrep](https://github.com/BurntSushi/ripgrep)
-- [s3scanner](https://github.com/sa7mon/S3Scanner)
+- [s3scanner](https://github.com/sa7mon/S3Scanner) and s3-user
 - [gittools](https://github.com/internetwache/GitTools)
 - [SimplyEmail](https://simplysecurity.github.io/SimplyEmail/)
+- Shodan user/api key with query credit
+
+If there are any of the scans that you don't want to run, you can remove its
+corresponding dependency.
 
 ## Run
 Run with
 ```console
-java -jar vulnscan-1.0-SNAPSHOT.jar
+java -jar vulnscan-1.0.jar
 ```
 
 ## Output
