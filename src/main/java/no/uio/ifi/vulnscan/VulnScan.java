@@ -1,14 +1,12 @@
 package no.uio.ifi.vulnscan;
 
 import no.uio.ifi.vulnscan.tasks.*;
-import no.uio.ifi.vulnscan.util.BashCommand;
 import no.uio.ifi.vulnscan.util.io.FileParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -23,15 +21,12 @@ public class VulnScan {
     private static final String subdomainsSubjackResultsFile = "subdomain_subjack_results";
     private static final String subdomainsTempFileName = "subdomains_temp";
     private static final String heartbleedFilename = "heartbleed_script_output";
-    private static final String agressiveScanOutputFilename = "agressive_scan_output";
     private static final String hostsToScanDefaultHostnameFilename = "hostnames";
     private static final String megPathsFilename = "meg_paths";
-    private static boolean aggressiveMode;
+    private static final String emailResultFolderName = "email_output";
     private final String actualHostsToScanFileName;
     private final Properties properties;
     private final List<CompletableFuture<Void>> scanTasks;
-
-    private final String emailResultFolderName = "email_output";
 
     /**
      * Sets the following
@@ -52,15 +47,8 @@ public class VulnScan {
             actualHostsToScanFileName = hostsToScanDefaultHostnameFilename;
             if (!new File(hostsToScanDefaultHostnameFilename).isFile()) {
                 log.error("Run application using:\n" +
-                          "java -jar vulnscan [fileWithHostNames] [--continue/-c, --aggressive/-a]");
+                          "java -jar vulnscan [fileWithHostNames]");
                 System.exit(0);
-            }
-        }
-
-        for (final String argument : args) {
-            if (argument.equalsIgnoreCase("--aggressive") || argument.equalsIgnoreCase("-a")) {
-                aggressiveMode = true;
-                break; // NB: remove break if more conditions are added
             }
         }
 
