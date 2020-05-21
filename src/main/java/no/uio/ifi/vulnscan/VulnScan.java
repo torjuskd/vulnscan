@@ -135,6 +135,12 @@ public class VulnScan {
                                                                    simplyEmailPath)));
         }
 
+        // RUN shodan-scan
+        if (Boolean.parseBoolean(properties.getProperty(ScanShodan.class.getSimpleName()))) {
+            scanTasks.add(CompletableFuture.runAsync(
+                    new ScanShodan(properties)));
+        }
+
         log.info("Scan starting, processing domains.");
         scanTasks.forEach(CompletableFuture::join);
         log.info("All hosts processed, Finished.");
