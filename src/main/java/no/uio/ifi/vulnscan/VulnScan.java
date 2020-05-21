@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -91,7 +92,7 @@ public class VulnScan {
      * through the use of CompletableFutures.
      */
     public void run() {
-        // RUN MEG
+        // RUN meg
         if (taskShouldRun(ScanForEnvFiles.class)) {
             addTaskToPipeline(new ScanForEnvFiles(megPathsFilename, actualHostsToScanFileName));
         }
@@ -102,7 +103,7 @@ public class VulnScan {
         }
 
         // RUN subdomain scan
-        // THEN run s3 scan after subdomains are looked up
+        // THEN run s3 scan after subdomains are looked up (aka in sequence)
         if (taskShouldRun(ScanSubdomains.class)
             && taskShouldRun(ScanS3.class)) {
             scanTasks.add(CompletableFuture.runAsync(
@@ -157,7 +158,8 @@ public class VulnScan {
     }
 
     /**
-     * Adds task to pipeline
+     * Adds task to pipeline.
+     * All the tasks that are added this way will be executed in parallel.
      *
      * @param runnable task to run
      */
