@@ -128,6 +128,11 @@ public class VulnScan {
             addTaskToPipeline(new ScanShodan(properties));
         }
 
+        // RUN google-scan
+        if (taskShouldRun(ScanGoogle.class)) {
+            addTaskToPipeline(new ScanGoogle(properties));
+        }
+
         log.info("Scan starting, processing domains.");
         scanTasks.forEach(CompletableFuture::join);
         log.info("All hosts processed, Finished.");
