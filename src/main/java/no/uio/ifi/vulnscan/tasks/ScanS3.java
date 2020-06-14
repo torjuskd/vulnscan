@@ -5,9 +5,13 @@ import no.uio.ifi.vulnscan.util.BashCommand;
 public class ScanS3 implements ScanTask {
     private final String processedSubdomainsFilename;
     private final String potentialS3Buckets = "potential-s3-buckets-subdomains";
+    private final String foundS3BucketsFilename = "found_s3_buckets.txt";
+    private final String s3ScannerPath;
 
-    public ScanS3(final String processedSubdomainsFilename) {
+    public ScanS3(final String processedSubdomainsFilename,
+                  final String s3ScannerPath) {
         this.processedSubdomainsFilename = processedSubdomainsFilename;
+        this.s3ScannerPath = s3ScannerPath;
     }
 
     @Override
@@ -17,7 +21,7 @@ public class ScanS3 implements ScanTask {
                 "rg  '(s3|bucket|aws)' " + processedSubdomainsFilename + " >> " + potentialS3Buckets);
         // scan potential buckets
         new BashCommand().runCommandOutputString(
-                "python S3Scanner/s3scanner.py --include-closed --out-file found_s3_buckets.txt --list " +
+                "python " + s3ScannerPath + "/s3scanner.py --include-closed --out-file " + foundS3BucketsFilename + " --list " +
                 potentialS3Buckets);
     }
 }

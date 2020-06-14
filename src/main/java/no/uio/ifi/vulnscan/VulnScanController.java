@@ -30,6 +30,7 @@ public class VulnScanController {
     private final String googleSearchEngine;
     private final String shodanApiKey;
     private final String shodanSearchQuery;
+    private final String s3ScannerPath;
     private final Properties properties;
     private final List<CompletableFuture<Void>> scanTasks;
 
@@ -50,6 +51,7 @@ public class VulnScanController {
         googleSearchEngine = properties.getProperty("GOOGLE_SEARCH_ENGINE");
         shodanApiKey = properties.getProperty("SHODAN_API_KEY");
         shodanSearchQuery = properties.getProperty("SHODAN_SEARCH_QUERY");
+        s3ScannerPath =  properties.getProperty("S3_SCANNER_DIR");
     }
 
     /**
@@ -82,7 +84,8 @@ public class VulnScanController {
                                        subdomainsSubjackResultsFile,
                                        processedHostsFilename,
                                        processedSubdomainsFilename))
-                                           .thenRun(new ScanS3(processedSubdomainsFilename)));
+                                           .thenRun(new ScanS3(processedSubdomainsFilename,
+                                                               s3ScannerPath)));
         } else if (taskShouldRun(ScanSubdomains.class)) {
             addTaskToPipeline(new ScanSubdomains(new FileParser().parseFile(hostsToScan),
                                                  subdomainsTempFileName,
