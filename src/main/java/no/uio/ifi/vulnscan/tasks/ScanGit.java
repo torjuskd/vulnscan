@@ -9,6 +9,6 @@ public class ScanGit implements ScanTask {
 
     @Override
     public void run() {
-        new BashCommand().runCommandOutputString("GitTools/Finder/gitfinder.py -i " + hostnamesFile + " -o git_repo_urls_found");
+        new BashCommand().runCommandOutputString("gitfinder.py -i " + hostnamesFile + " -o git_repo_urls_found");
     }
 }
