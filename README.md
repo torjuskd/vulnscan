@@ -34,7 +34,7 @@ java -jar vulnscan-1.0.jar
 Results will be written to files currently specified in the class `VulnScan`.
 Output from searching for `.env` files will be in the `out/` directory.
 
-## Current source directory structure
+## Source directory structure
 ```
 src
 ├── main
