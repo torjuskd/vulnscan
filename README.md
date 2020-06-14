@@ -2,6 +2,8 @@
 
 A simple batteries included, non-intrusive, large scale vulnerability scanner.
 
+![Java CI with Maven](https://github.com/torjuskd/vulnscan/workflows/Java%20CI%20with%20Maven/badge.svg)
+
 ## Setup and dependencies
 To be able to run this application, you must have some dependencies installed and
 on your `PATH` for non-interactive shells.
