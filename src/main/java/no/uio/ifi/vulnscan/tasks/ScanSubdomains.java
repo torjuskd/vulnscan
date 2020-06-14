@@ -36,10 +36,8 @@ public class ScanSubdomains implements ScanTask {
         new FileOverWriter().writeContentsToFile(subdomains, subdomainsTempFileName);
 
         // Subjack appends to result-file, so we don't have to change filename for repeated calls
-        //TODO: fix PATH here
         final var subjackResults = new BashCommand()
                 .runCommandOutPutArrayList(
-                        "export PATH=\"$PATH:/home/torjusd/go/bin\"\n" +
                         "CURRENTDIR=$(pwd)\n" +
                         "subjack -w " +
                         "$CURRENTDIR/" + subdomainsTempFileName + " -t 100 -timeout 30 " +

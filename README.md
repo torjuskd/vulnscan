@@ -6,7 +6,7 @@ A simple batteries included, non-intrusive, large scale vulnerability scanner.
 To be able to run this application, you must have some dependencies installed and
 on your `PATH` for non-interactive shells.
 This usually means that: To make your PATH entries available to /bin/sh scripts run by a specific user,
-add the PATH entry to the ~/.profile file or ~/.bash_profile or ~/.bash_login.
+add the PATH entry to the `~/.profile` file or `~/.bash_profile` or `~/.bash_login`.
 
 ### Dependencies
 - `postgresql` - install on eg. Ubuntu with `sudo apt install postgresql postgresql-contrib`, already installed on Kali.
@@ -18,6 +18,7 @@ add the PATH entry to the ~/.profile file or ~/.bash_profile or ~/.bash_login.
 - [gittools](https://github.com/internetwache/GitTools)
 - [SimplyEmail](https://simplysecurity.github.io/SimplyEmail/)
 - Shodan user/api key with query credit
+- Google custom search engine, and api key to use it
 
 If there are any of the scans that you don't want to run, you can remove its
 corresponding dependency.
@@ -34,7 +35,7 @@ Output from searching for `.env` files will be in the `out/` directory.
 
 ## Current source directory structure
 ```
-.
+src
 ├── main
 │   ├── java
 │   │   └── no
@@ -42,16 +43,21 @@ Output from searching for `.env` files will be in the `out/` directory.
 │   │           └── ifi
 │   │               └── vulnscan
 │   │                   ├── Application.java
-│   │                   ├── BashCommand.java
-│   │                   ├── FileOverWriter.java
-│   │                   ├── FileParser.java
 │   │                   ├── tasks
+│   │                   │   ├── ScanEmail.java
 │   │                   │   ├── ScanForEnvFiles.java
 │   │                   │   ├── ScanGit.java
+│   │                   │   ├── ScanGoogle.java
 │   │                   │   ├── ScanHeartbleed.java
 │   │                   │   ├── ScanS3.java
+│   │                   │   ├── ScanShodan.java
 │   │                   │   ├── ScanSubdomains.java
 │   │                   │   └── ScanTask.java
+│   │                   ├── util
+│   │                   │   ├── BashCommand.java
+│   │                   │   └── io
+│   │                   │       ├── FileOverWriter.java
+│   │                   │       └── FileParser.java
 │   │                   └── VulnScan.java
 │   └── resources
 │       └── log4j2.xml
