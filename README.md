@@ -11,19 +11,18 @@ This usually means that: To make your PATH entries available to /bin/sh scripts 
 add the PATH entry to the `~/.profile` file or `~/.bash_profile` or `~/.bash_login`.
 
 ### Dependencies
-- `postgresql` - install on eg. Ubuntu with `sudo apt install postgresql postgresql-contrib`, already installed on Kali.
+- `postgresql` - install on eg. Ubuntu with `sudo apt install postgresql postgresql-contrib`, installed by default on Kali.
 - [subjack](https://github.com/haccer/subjack)
 - [meg](https://github.com/tomnomnom/meg)
 - [nmap](https://nmap.org/)
 - [ripgrep](https://github.com/BurntSushi/ripgrep)
-- [s3scanner](https://github.com/sa7mon/S3Scanner) and s3-user
+- [s3scanner](https://github.com/sa7mon/S3Scanner) and an S3-account
 - [gittools](https://github.com/internetwache/GitTools)
 - [SimplyEmail](https://simplysecurity.github.io/SimplyEmail/)
 - Shodan user/api key with query credit
 - Google custom search engine, and api key to use it
 
-If there are any of the scans that you don't want to run, you can remove its
-corresponding dependency.
+If there are any of the scans that you don't want to run, you can set its flag to `false` in the config-file.
 
 ## Run
 Run with
