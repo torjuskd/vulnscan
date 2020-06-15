@@ -65,3 +65,5 @@ src
 └── test
     └── java
 ```
+## UML class diagram with dependencies drawn
+![UML](diagrams/vulnscan_with_dependencies_uml.png)
