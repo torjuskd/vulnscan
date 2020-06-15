@@ -5,10 +5,12 @@ A simple non-intrusive, large scale vulnerability scanner.
 ![Java CI with Maven](https://github.com/torjuskd/vulnscan/workflows/Java%20CI%20with%20Maven/badge.svg?branch=master) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## Setup and dependencies
-To be able to run this application, you must have some dependencies installed and
-on your `PATH` for non-interactive shells.
-This usually means that: To make your PATH entries available to /bin/sh scripts run by a specific user,
-add the PATH entry to the `~/.profile` file or `~/.bash_profile` or `~/.bash_login`.
+- To be able to run this application, you must have some dependencies installed and
+on your `$PATH` for non-interactive shells.
+- This usually means that: To make your PATH entries available to /bin/sh scripts run by a specific user,
+add the `$PATH` entry to the `~/.profile` file or `~/.bash_profile` or `~/.bash_login`.
+- Additionally, requirements must be installed for dependencies using Python, and Go must be installed for subjack to work.
+The easiest way to do this is probably to follow the installation guide for each of the modules, and then make sure the binaries are on `$PATH` for vulnscan to use.
 
 ### Dependencies
 - `postgresql` - install on eg. Ubuntu with `sudo apt install postgresql postgresql-contrib`, installed by default on Kali.
@@ -24,11 +26,16 @@ add the PATH entry to the `~/.profile` file or `~/.bash_profile` or `~/.bash_log
 
 If there are any of the scans that you don't want to run, you can set its flag to `false` in the config-file.
 
-## Run
-Run with
-```console
+## Use
+- Build with Maven, using Java 11
+```bash
+mvn clean install
+```
+- Run with
+```bash
 java -jar vulnscan-1.0.jar
 ```
+- The application is configured using the file `vulnscan.config`
 
 ## Output
 Results will be written to files currently specified in the class `VulnScan`.
