@@ -2,7 +2,7 @@
 
 A simple non-intrusive, large scale vulnerability scanner.
 
-![Java CI with Maven](https://github.com/torjuskd/vulnscan/workflows/Java%20CI%20with%20Maven/badge.svg?branch=master)
+![Java CI with Maven](https://github.com/torjuskd/vulnscan/workflows/Java%20CI%20with%20Maven/badge.svg?branch=master) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## Setup and dependencies
 To be able to run this application, you must have some dependencies installed and
